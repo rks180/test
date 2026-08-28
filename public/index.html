@@ -1,0 +1,337 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>InsuredMine API Console</title>
+<style>
+  :root {
+    --bg: #f6f7f9; --panel: #fff; --border: #e2e5ea; --text: #1a1d21;
+    --muted: #6b7280; --accent: #2563eb; --ok: #059669; --err: #dc2626;
+    --code-bg: #0f172a; --code-fg: #e2e8f0;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#0f1115; --panel:#171a20; --border:#2a2f39; --text:#e6e8eb;
+            --muted:#9aa2b1; --accent:#60a5fa; --ok:#34d399; --err:#f87171;
+            --code-bg:#0b0e14; --code-fg:#d7dde8; }
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--text);
+         font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
+  .wrap { max-width: 820px; margin: 0 auto; padding: 32px 20px 64px; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  .sub { color: var(--muted); margin: 0 0 28px; font-size: 14px; }
+  .card { background:var(--panel); border:1px solid var(--border);
+          border-radius:12px; padding:20px; margin-bottom:18px; }
+  .card h2 { font-size:15px; margin:0 0 4px; }
+  .card p.hint { color:var(--muted); font-size:13px; margin:0 0 14px; }
+  button { background:var(--accent); color:#fff; border:0; border-radius:8px;
+           padding:9px 16px; font-size:14px; font-weight:500; cursor:pointer; }
+  button:hover { filter:brightness(1.08); }
+  button:disabled { opacity:.5; cursor:not-allowed; }
+  input[type=file] { font-size:14px; margin-bottom:12px; display:block; }
+  pre { background:var(--code-bg); color:var(--code-fg); padding:14px;
+        border-radius:8px; overflow-x:auto; font-size:12.5px; margin:14px 0 0;
+        max-height:340px; overflow-y:auto; }
+  .row { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+  .counts { display:grid; grid-template-columns:repeat(auto-fit,minmax(110px,1fr));
+            gap:10px; margin-top:14px; }
+  .count { background:var(--bg); border:1px solid var(--border);
+           border-radius:8px; padding:12px; text-align:center; }
+  .count .n { font-size:22px; font-weight:600; display:block; }
+  .count .l { font-size:11px; color:var(--muted); text-transform:uppercase;
+              letter-spacing:.04em; }
+  .status { font-size:13px; font-weight:500; }
+  .status.ok { color:var(--ok); } .status.err { color:var(--err); }
+  .status.run { color:var(--accent); }
+  select { background:var(--panel); color:var(--text); border:1px solid var(--border);
+           border-radius:8px; padding:8px 10px; font-size:14px; }
+  .tablewrap { overflow-x:auto; margin-top:14px; border:1px solid var(--border);
+               border-radius:8px; max-height:420px; overflow-y:auto; }
+  table { border-collapse:collapse; width:100%; font-size:12.5px; }
+  th { position:sticky; top:0; background:var(--bg); text-align:left;
+       padding:9px 12px; font-weight:600; white-space:nowrap;
+       border-bottom:1px solid var(--border); }
+  td { padding:8px 12px; border-bottom:1px solid var(--border);
+       white-space:nowrap; max-width:260px; overflow:hidden; text-overflow:ellipsis; }
+  tr:last-child td { border-bottom:0; }
+  .pager { color:var(--muted); font-size:13px; }
+  .meter { height:22px; background:var(--bg); border:1px solid var(--border);
+           border-radius:6px; overflow:hidden; position:relative; margin-top:12px; }
+  .meter .fill { height:100%; background:var(--ok); transition:width .3s, background .3s; }
+  .meter .fill.hot { background:var(--err); }
+  .meter .mark { position:absolute; top:0; bottom:0; width:2px; background:var(--err);
+                 opacity:.55; }
+  .meter .lbl { position:absolute; inset:0; display:flex; align-items:center;
+                justify-content:center; font-size:12px; font-weight:600; }
+  .kv { display:grid; grid-template-columns:repeat(auto-fit,minmax(130px,1fr));
+        gap:10px; margin-top:12px; }
+  .kv div { background:var(--bg); border:1px solid var(--border); border-radius:8px;
+            padding:9px 12px; font-size:12.5px; }
+  .kv b { display:block; color:var(--muted); font-weight:500; font-size:11px;
+          text-transform:uppercase; letter-spacing:.04em; margin-bottom:2px; }
+  .spark { display:flex; align-items:flex-end; gap:2px; height:48px; margin-top:12px; }
+  .spark i { flex:1; background:var(--accent); border-radius:1px; min-height:1px; }
+  .spark i.hot { background:var(--err); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>InsuredMine API Console</h1>
+  <p class="sub">Task 1 &amp; 2 ko browser se test karne ke liye. Server <code>localhost:3000</code> pe chalna chahiye.</p>
+
+  <div class="card">
+    <h2>Server health</h2>
+    <p class="hint">GET /health</p>
+    <button onclick="health()">Check</button>
+    <span id="hstatus" class="status"></span>
+    <pre id="hout" hidden></pre>
+  </div>
+
+  <div class="card">
+    <h2>1. CSV / XLSX upload (worker thread)</h2>
+    <p class="hint">POST /api/upload &mdash; file worker thread me parse hoti hai, main thread free rehta hai</p>
+    <input type="file" id="file" accept=".csv,.xlsx,.xlsm">
+    <div class="row">
+      <button id="upbtn" onclick="upload()">Upload</button>
+      <span id="ustatus" class="status"></span>
+    </div>
+    <pre id="uout" hidden></pre>
+  </div>
+
+  <div class="card">
+    <h2>2. Database counts</h2>
+    <p class="hint">GET /api/stats &mdash; har collection me kitne documents hain</p>
+    <button onclick="stats()">Refresh</button>
+    <div class="counts" id="counts"></div>
+  </div>
+
+  <div class="card">
+    <h2>3. Uploaded data dekho</h2>
+    <p class="hint">GET /api/data/:collection &mdash; policies me references naam ke saath dikhte hain</p>
+    <div class="row">
+      <select id="coll" onchange="page=1; browse()">
+        <option value="policies">policies</option>
+        <option value="users">users</option>
+        <option value="accounts">accounts</option>
+        <option value="agents">agents</option>
+        <option value="carriers">carriers</option>
+        <option value="lobs">lobs</option>
+      </select>
+      <button onclick="page=1; browse()">Load</button>
+      <button onclick="prev()">&larr; Prev</button>
+      <button onclick="next()">Next &rarr;</button>
+      <span class="pager" id="pager"></span>
+    </div>
+    <div class="tablewrap" id="tablewrap" hidden><table id="tbl"></table></div>
+  </div>
+
+  <div class="card">
+    <h2>4. Real-time CPU monitor &mdash; 70% pe auto restart</h2>
+    <p class="hint">
+      GET /api/cpu har second poll hota hai. <b>Stress</b> dabao &rarr; CPU chadhega &rarr;
+      lagataar 3 samples 70% ke upar rahe to server khud restart ho jayega
+      (<code>npm start</code> cluster mode me). Neeche <b>worker PID</b> badalna hi restart ka proof hai.
+    </p>
+    <div class="row">
+      <button onclick="stress()">CPU stress (15s)</button>
+      <span id="cstatus" class="status"></span>
+    </div>
+
+    <div class="meter">
+      <div class="fill" id="cfill" style="width:0%"></div>
+      <div class="mark" id="cmark"></div>
+      <div class="lbl" id="clbl">--</div>
+    </div>
+
+    <div class="spark" id="spark"></div>
+
+    <div class="kv" id="ckv"></div>
+  </div>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+
+function show(el, data) { el.hidden = false; el.textContent = JSON.stringify(data, null, 2); }
+
+async function health() {
+  const s = $('hstatus');
+  try {
+    const r = await fetch('/health');
+    const d = await r.json();
+    s.textContent = 'server zinda hai'; s.className = 'status ok';
+    show($('hout'), d);
+  } catch (e) {
+    s.textContent = 'server band hai'; s.className = 'status err';
+  }
+}
+
+async function upload() {
+  const f = $('file').files[0];
+  const s = $('ustatus');
+  if (!f) { s.textContent = 'pehle file choose karo'; s.className = 'status err'; return; }
+
+  const fd = new FormData();
+  fd.append('file', f);
+
+  $('upbtn').disabled = true;
+  s.textContent = 'upload ho rahi hai...'; s.className = 'status run';
+
+  try {
+    const r = await fetch('/api/upload', { method: 'POST', body: fd });
+    const d = await r.json();
+    show($('uout'), d);
+    if (!d.jobId) throw new Error(d.error || 'upload fail');
+    s.textContent = 'worker thread me chal raha hai...';
+    await poll(d.jobId);
+  } catch (e) {
+    s.textContent = e.message; s.className = 'status err';
+  } finally {
+    $('upbtn').disabled = false;
+  }
+}
+
+async function poll(jobId) {
+  const s = $('ustatus');
+  for (let i = 0; i < 240; i++) {
+    const d = await (await fetch('/api/upload/' + jobId)).json();
+    show($('uout'), d);
+    if (d.status === 'completed') {
+      const ms = new Date(d.finishedAt) - new Date(d.startedAt);
+      s.textContent = `ho gaya — ${d.stats.rowsRead} rows, ${ms}ms`;
+      s.className = 'status ok';
+      stats();
+      return;
+    }
+    if (d.status === 'failed') {
+      s.textContent = 'fail: ' + d.error; s.className = 'status err';
+      return;
+    }
+    await new Promise((res) => setTimeout(res, 400));
+  }
+  s.textContent = 'timeout'; s.className = 'status err';
+}
+
+async function stats() {
+  const d = await (await fetch('/api/stats')).json();
+  $('counts').innerHTML = Object.entries(d)
+    .map(([k, v]) => `<div class="count"><span class="n">${v}</span><span class="l">${k}</span></div>`)
+    .join('');
+}
+
+let page = 1, totalPages = 1;
+
+function cellText(v) {
+  if (v === null || v === undefined || v === '') return '—';
+  if (typeof v === 'object') {
+    // populated reference -> uska naam nikaalo
+    const name = v.firstname || v.company_name || v.category_name || v.account_name || v.name;
+    if (name) return name;
+    if (v.$oid) return v.$oid;
+    return JSON.stringify(v);
+  }
+  const s = String(v);
+  // ISO date ko chhota kar do
+  if (/^\d{4}-\d{2}-\d{2}T/.test(s)) return s.slice(0, 10);
+  return s;
+}
+
+async function browse() {
+  const coll = $('coll').value;
+  const d = await (await fetch(`/api/data/${coll}?page=${page}&limit=25`)).json();
+  if (d.error) { $('pager').textContent = d.error; return; }
+
+  totalPages = d.totalPages || 1;
+  $('pager').textContent = `page ${d.page} / ${totalPages} — total ${d.total}`;
+
+  if (!d.docs.length) { $('tablewrap').hidden = true; return; }
+
+  // __v aur timestamps hata do, table saaf rahe
+  const skip = new Set(['__v', 'createdAt', 'updatedAt']);
+  const cols = Object.keys(d.docs[0]).filter((k) => !skip.has(k));
+
+  const head = '<tr>' + cols.map((c) => `<th>${c}</th>`).join('') + '</tr>';
+  const body = d.docs
+    .map((doc) => '<tr>' + cols.map((c) => `<td>${cellText(doc[c])}</td>`).join('') + '</tr>')
+    .join('');
+
+  $('tbl').innerHTML = head + body;
+  $('tablewrap').hidden = false;
+}
+
+function prev() { if (page > 1) { page--; browse(); } }
+function next() { if (page < totalPages) { page++; browse(); } }
+
+// ---- CPU monitor (Task 2.1) ----
+let lastPid = null, restartCount = 0;
+
+async function cpuTick() {
+  let d;
+  try {
+    d = await (await fetch('/api/cpu')).json();
+  } catch (e) {
+    // restart ke dauran ek-do request fail ho sakti hai
+    $('clbl').textContent = 'reconnecting...';
+    return;
+  }
+
+  const c = d.current;
+  if (!c) return;
+
+  const pct = Math.min(c.processCpu, 100);
+  const hot = c.processCpu >= d.threshold;
+
+  const fill = $('cfill');
+  fill.style.width = pct + '%';
+  fill.className = 'fill' + (hot ? ' hot' : '');
+  $('cmark').style.left = d.threshold + '%';
+  $('clbl').textContent = `${c.processCpu}%  (threshold ${d.threshold}%)`;
+
+  // restart detect: PID badal gaya
+  if (lastPid !== null && d.pid !== lastPid) {
+    restartCount++;
+    const s = $('cstatus');
+    s.textContent = `restart hua! ${lastPid} → ${d.pid}`;
+    s.className = 'status ok';
+  }
+  lastPid = d.pid;
+
+  $('ckv').innerHTML = `
+    <div><b>worker pid</b>${d.pid}</div>
+    <div><b>process cpu</b>${c.processCpu}% of 1 core</div>
+    <div><b>system cpu</b>${c.systemCpu}% of ${d.cores} cores</div>
+    <div><b>memory (rss)</b>${c.rssMb} MB</div>
+    <div><b>heap used</b>${c.heapUsedMb} MB</div>
+    <div><b>uptime</b>${d.uptimeSec}s</div>
+    <div><b>breaches</b>${d.consecutiveBreaches} / ${d.consecutiveNeeded}</div>
+    <div><b>restarts dekhe</b>${restartCount}</div>`;
+
+  $('spark').innerHTML = d.history
+    .slice(-40)
+    .map((p) => `<i class="${p.processCpu >= d.threshold ? 'hot' : ''}" style="height:${Math.max(Math.min(p.processCpu, 100), 1)}%"></i>`)
+    .join('');
+}
+
+async function stress() {
+  const s = $('cstatus');
+  s.textContent = 'CPU garam kar rahe hain...'; s.className = 'status run';
+  try {
+    await fetch('/api/cpu/stress', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ seconds: 15 }),
+    });
+  } catch (e) {
+    s.textContent = e.message; s.className = 'status err';
+  }
+}
+
+health();
+stats();
+browse();
+cpuTick();
+setInterval(cpuTick, 1000);
+</script>
+</body>
+</html>
