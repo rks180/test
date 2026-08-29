@@ -8,8 +8,7 @@ interface Schemas {
   params?: ZodType;
 }
 
-// Route-level middleware: validates + coerces req.body / req.query / req.params
-// against zod schemas. Parsed, typed values land on req.valid.
+// Validates + coerces req.body/query/params against zod schemas; parsed values land on req.valid.
 export function validate(schemas: Schemas): RequestHandler {
   return (req: Request, _res: Response, next: NextFunction) => {
     try {
