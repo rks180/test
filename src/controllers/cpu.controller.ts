@@ -3,11 +3,7 @@ import { Worker } from 'worker_threads';
 import { Request, Response } from 'express';
 import { monitor } from '../services/monitor';
 
-// Always run the compiled worker (see note in services/importJobs.ts).
-const WORKERS_DIR = __filename.endsWith('.ts')
-  ? path.join(__dirname, '..', '..', 'dist', 'workers')
-  : path.join(__dirname, '..', 'workers');
-const STRESS_WORKER = path.join(WORKERS_DIR, 'stress.worker.js');
+const STRESS_WORKER = path.join(__dirname, '..', 'workers', 'stress.worker.js');
 
 /** GET /api/cpu -- live CPU + memory reading plus recent sample history. */
 export function cpu(_req: Request, res: Response): void {

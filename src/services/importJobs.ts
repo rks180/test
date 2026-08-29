@@ -32,11 +32,8 @@ interface WorkerMessage {
   message?: string;
 }
 
-// Always run the compiled worker (`dist/workers/*.js`) -- plain JS worker is more reliable than a TS loader; `npm start`/`dev` build first.
-const WORKERS_DIR = __filename.endsWith('.ts')
-  ? path.join(__dirname, '..', '..', 'dist', 'workers')
-  : path.join(__dirname, '..', 'workers');
-const WORKER_PATH = path.join(WORKERS_DIR, 'import.worker.js');
+// dev + prod both run from dist/, so this resolves the same either way.
+const WORKER_PATH = path.join(__dirname, '..', 'workers', 'import.worker.js');
 
 // In-memory job registry, one upload = one worker thread (Redis/DB in production; fine for this scope).
 const jobs = new Map<string, ImportJob>();
