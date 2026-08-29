@@ -103,8 +103,13 @@ export class CpuMonitor extends EventEmitter {
     if (this.history.length > this.historySize) this.history.shift();
 
     this.emit('sample', point);
+    this.track(point);
 
-    // ---- threshold check ----
+    return point;
+  }
+
+  /** Breach bookkeeping -- emits "threshold" once `consecutive` samples in a row are over the line. */
+  track(point: CpuPoint): void {
     if (point.processCpu >= this.threshold) {
       this.breaches++;
       if (this.breaches >= this.consecutive) {
@@ -114,8 +119,6 @@ export class CpuMonitor extends EventEmitter {
     } else {
       this.breaches = 0; // must be consecutive, otherwise reset
     }
-
-    return point;
   }
 
   start(): this {
