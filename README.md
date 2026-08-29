@@ -1,9 +1,8 @@
 # InsuredMine Node.js Assessment (TypeScript)
 
-Express + MongoDB service: CSV/XLSX import via worker threads, policy search &
-per-user aggregation, CPU monitor with auto-restart at 70%, scheduled messages.
+CSV/XLSX import via worker threads, policy search & aggregation, CPU auto-restart at 70%, scheduled messages.
 
-## Setup
+## Run
 
 ```
 npm install
@@ -11,25 +10,23 @@ cp .env.example .env
 npm start
 ```
 
-Needs a running MongoDB. Server runs on `http://localhost:3000`.
-`npm start` compiles TypeScript and runs in cluster mode (required for CPU auto-restart).
+Needs MongoDB running. App runs on `http://localhost:3000` (open it for a test console).
 
 ## API
 
-| Task | Method | Endpoint | Description |
-|---|---|---|---|
-| | GET | `/health` | uptime / pid |
-| 1.1 | POST | `/api/upload` | upload CSV/XLSX (field `file`) — parses in a worker thread |
-| 1.1 | GET | `/api/upload/:jobId` | import job status |
-| 1.1 | GET | `/api/uploads` | list import jobs |
-| 1.1 | GET | `/api/stats` | count per collection |
-| 1.2 | GET | `/api/policies/search?username=` | policies for a user (`&exact=true`, `&page=`, `&limit=`) |
-| 1.3 | GET | `/api/policies/aggregate` | policy count + premium totals per user (`?username=`, `&page=`, `&limit=`) |
-| 1.4 | GET | `/api/data/:collection` | browse `agents\|carriers\|lobs\|users\|accounts\|policies` |
-| 2.1 | GET | `/api/cpu` | live CPU + memory |
-| 2.1 | POST | `/api/cpu/stress` | `{ "seconds": 15 }` — demo load to trigger restart |
-| 2.2 | POST | `/api/messages` | `{ "message", "day": "YYYY-MM-DD", "time": "HH:mm" }` |
-| 2.2 | GET | `/api/messages` | list (`?status=scheduled\|sent\|failed`) |
-| 2.2 | GET | `/api/messages/:id` | single message |
+```
+POST /api/upload                 upload CSV/XLSX (field "file"), parsed in a worker thread
+GET  /api/upload/:jobId          import job status
+GET  /api/stats                  count per collection
 
-Or open `http://localhost:3000/` for a browser console with a button per endpoint.
+GET  /api/policies/search?username=Lura      policies for a user
+GET  /api/policies/aggregate                 policy count + premium per user
+
+GET  /api/data/:collection       browse users | policies | agents | carriers | lobs | accounts
+
+GET  /api/cpu                    live CPU
+POST /api/cpu/stress             { "seconds": 15 }  -> triggers restart
+
+POST /api/messages               { "message", "day": "2026-09-01", "time": "14:30" }
+GET  /api/messages               list scheduled/sent messages
+```
