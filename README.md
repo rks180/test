@@ -10,68 +10,52 @@ Stack: Node.js, TypeScript, Express 5, Mongoose, `worker_threads`, `cluster`, `m
 ```bash
 npm install
 cp .env.example .env        # set MONGO_URI / PORT if needed (needs a running MongoDB)
-npm start                   # build + run (cluster mode, port 3000)
 ```
 
 ## Commands
 
-| Command | What |
-|---|---|
-| `npm start` | build + run clustered (needed for CPU auto-restart) |
-| `npm run start:single` | build + run single process |
-| `npm run dev` | build once + `tsx watch` (auto-reload) |
-| `npm run build` | compile `src/` → `dist/` |
-| `npm run typecheck` | type-check only |
-| `npm test` | run `scripts/smoke-test.sh` (server must be running) |
+```bash
+npm start                   # build + run (cluster mode, needed for CPU auto-restart)
+npm run start:single        # build + run single process
+npm run dev                 # build once + tsx watch (auto-reload)
+npm run build               # compile src/ -> dist/
+npm run typecheck           # type-check only
+npm test                    # run scripts/smoke-test.sh (server must be running)
+```
 
 ## API
 
 Base URL: `http://localhost:3000`
 
-### Health
-```bash
-curl http://localhost:3000/health
-```
+| # | Method | Endpoint | Description |
+|---|--------|----------|-------------|
+| | GET | `/health` | uptime / pid |
+| 1.1 | POST | `/api/upload` | upload CSV/XLSX (form field `file`); parses in a worker thread, returns `202` + `jobId` |
+| 1.1 | GET | `/api/upload/:jobId` | import job status |
+| 1.1 | GET | `/api/uploads` | list all import jobs |
+| 1.1 | GET | `/api/stats` | document count per collection |
+| 1.2 | GET | `/api/policies/search?username=&page=&limit=&exact=` | policies for the matching user(s), references populated |
+| 1.3 | GET | `/api/policies/aggregate?page=&limit=&username=` | per-user policy count + premium totals |
+| 1.4 | GET | `/api/data/:collection?page=&limit=` | browse `agents\|carriers\|lobs\|users\|accounts\|policies` |
+| 2.1 | GET | `/api/cpu` | live CPU + memory + history |
+| 2.1 | POST | `/api/cpu/stress` | body `{ "seconds": 15 }` — demo load to trigger the restart |
+| 2.2 | POST | `/api/messages` | body `{ "message", "day": "YYYY-MM-DD", "time": "HH:mm" }` — schedule a message |
+| 2.2 | GET | `/api/messages?status=&page=&limit=` | list messages (`scheduled\|sent\|failed`) |
+| 2.2 | GET | `/api/messages/:id` | single message |
 
-### 1.1 Upload CSV/XLSX (worker thread)
+### Example requests
+
 ```bash
 curl -F "file=@data/data-sheet.csv" http://localhost:3000/api/upload
-curl http://localhost:3000/api/upload/<jobId>      # job status
-curl http://localhost:3000/api/uploads             # all jobs
-curl http://localhost:3000/api/stats               # count per collection
-```
-
-### 1.2 Search policy by username
-```bash
+curl http://localhost:3000/api/stats
 curl "http://localhost:3000/api/policies/search?username=Lura%20Lucca"
-curl "http://localhost:3000/api/policies/search?username=lura&exact=true&page=1&limit=20"
-```
-
-### 1.3 Aggregated policy per user
-```bash
 curl "http://localhost:3000/api/policies/aggregate?page=1&limit=20"
-curl "http://localhost:3000/api/policies/aggregate?username=Lura%20Lucca"
-```
-
-### Browse a collection
-```bash
 curl "http://localhost:3000/api/data/policies?page=1&limit=20"
-# collections: agents | carriers | lobs | users | accounts | policies
-```
-
-### 2.1 CPU monitor + restart
-```bash
 curl http://localhost:3000/api/cpu
 curl -X POST http://localhost:3000/api/cpu/stress -H 'Content-Type: application/json' -d '{"seconds":15}'
-# run with `npm start`; watch /api/cpu -> pid changes when it restarts
-```
-
-### 2.2 Scheduled message
-```bash
 curl -X POST http://localhost:3000/api/messages -H 'Content-Type: application/json' \
   -d '{"message":"Renewal reminder","day":"2026-09-01","time":"14:30"}'
 curl "http://localhost:3000/api/messages?status=scheduled"
-curl http://localhost:3000/api/messages/<id>
 ```
 
 Or open `http://localhost:3000/` — browser console with a button per endpoint.
