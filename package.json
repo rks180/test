@@ -1,15 +1,20 @@
 {
   "name": "insuredmine-assessment",
   "version": "1.0.0",
-  "description": "InsuredMine Node.js assessment - CSV/XLSX to MongoDB via worker threads, policy search & aggregation APIs, CPU monitor with auto-restart, scheduled messages",
-  "main": "src/cluster.js",
+  "description": "InsuredMine Node.js assessment (TypeScript) - CSV/XLSX to MongoDB via worker threads, policy search & aggregation APIs, CPU monitor with auto-restart, scheduled messages",
+  "main": "dist/cluster.js",
   "scripts": {
-    "start": "node src/cluster.js",
-    "dev": "node --watch src/server.js",
-    "start:single": "node src/server.js"
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist",
+    "start": "npm run build && node dist/cluster.js",
+    "start:single": "npm run build && node dist/server.js",
+    "dev": "npm run build && tsx watch src/server.ts",
+    "test": "bash scripts/smoke-test.sh"
   },
   "keywords": [
     "nodejs",
+    "typescript",
     "express",
     "mongodb",
     "mongoose",
@@ -27,5 +32,12 @@
     "mongoose": "^9.9.4",
     "multer": "^2.2.0",
     "node-cron": "^4.6.0"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "@types/multer": "^2.2.0",
+    "@types/node": "^26.4.0",
+    "tsx": "^4.23.12",
+    "typescript": "^7.0.2"
   }
 }

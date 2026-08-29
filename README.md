@@ -1,132 +1,163 @@
-# InsuredMine Node.js Assessment
+# InsuredMine Node.js Assessment (TypeScript)
 
-Express + MongoDB (Mongoose) service that imports a CSV/XLSX of insurance data
-into normalized collections using **worker threads**, exposes policy search and
-per-user aggregation APIs, monitors CPU load and restarts the process when it
-stays high, and schedules messages for future delivery.
+Express + MongoDB service that imports a CSV/XLSX of insurance data into
+normalized collections using **worker threads**, exposes policy search and
+per-user aggregation APIs, monitors CPU and restarts the process at 70%, and
+schedules messages for future delivery.
 
-## Stack
+- **Language:** TypeScript (compiled to `dist/`, CommonJS)
+- **Stack:** Node.js, Express 5, Mongoose, `worker_threads`, `cluster`, `multer`, `csv-parser` / `exceljs`, `node-cron`
 
-- Node.js (CommonJS), Express 5
-- MongoDB via Mongoose
-- `worker_threads` for CSV/XLSX import and CPU stress testing
-- `cluster` for zero-downtime restart on CPU overload
-- `multer` for file upload, `csv-parser` / `exceljs` for streaming parse
-- `node-cron` for scheduled-message delivery
+## Requirements
+
+- Node.js 18+
+- A running MongoDB (default `mongodb://127.0.0.1:27017/insuredmine`)
 
 ## Setup
 
 ```bash
 npm install
-cp .env.example .env          # adjust MONGO_URI / PORT if needed
-npm start                     # clustered (src/cluster.js) -- required for auto-restart
-npm run start:single          # single process (src/server.js)
-npm run dev                   # single process, --watch
+cp .env.example .env        # edit MONGO_URI / PORT if needed
 ```
 
-Requires a running MongoDB (default `mongodb://127.0.0.1:27017/insuredmine`).
+## Commands
 
-A browser test console is served at `http://localhost:3000/`.
+| Command | What it does |
+|---|---|
+| `npm run build` | Compile `src/**/*.ts` → `dist/` |
+| `npm start` | Build, then run **clustered** (`dist/cluster.js`) — needed for CPU auto-restart |
+| `npm run start:single` | Build, then run a **single process** (`dist/server.js`) |
+| `npm run dev` | Build once, then `tsx watch` the server (auto-reload on change) |
+| `npm run typecheck` | Type-check only, no output |
+| `npm test` | Run the end-to-end smoke test (`scripts/smoke-test.sh`) against a running server |
+| `npm run clean` | Delete `dist/` |
+
+Server + test console: `http://localhost:3000/`
 
 ## Task mapping
 
-| Assignment task | Where |
+| Task | Endpoint / file |
 |---|---|
-| **1.1** Upload XLSX/CSV into MongoDB using worker threads | `POST /api/upload` → `src/workers/import.worker.js` |
-| **1.2** Search policy info by username | `GET /api/policies/search` → `src/controllers/policy.controller.js` |
-| **1.3** Aggregated policy by each user | `GET /api/policies/aggregate` → `src/controllers/policy.controller.js` |
+| **1.1** Upload XLSX/CSV to MongoDB via worker threads | `POST /api/upload` → `src/workers/import.worker.ts` |
+| **1.2** Search policy info by username | `GET /api/policies/search` → `src/controllers/policy.controller.ts` |
+| **1.3** Aggregated policy by each user | `GET /api/policies/aggregate` → `src/controllers/policy.controller.ts` |
 | **1.4** One collection per entity (Agent, User, Account, LOB, Carrier, Policy) | `src/models/` |
-| **2.1** Track real-time CPU, restart at 70% | `src/utils/cpuMonitor.js` + `src/cluster.js` |
-| **2.2** POST service: message + day + time → insert into DB at that day/time | `POST /api/messages` + `src/services/scheduler.js` |
+| **2.1** Track real-time CPU, restart at 70% | `src/utils/cpuMonitor.ts` + `src/cluster.ts` |
+| **2.2** POST service: message + day + time → insert into DB at that day/time | `POST /api/messages` + `src/services/scheduler.ts` |
 
 ## API
 
-| Method | Path | Description |
-|--------|------|-------------|
-| GET  | `/health`                 | Process health / uptime / pid |
-| POST | `/api/upload`             | Upload CSV/XLSX (`file` field); parsing runs in a worker thread, returns `202` + `jobId` |
-| GET  | `/api/upload/:jobId`      | Import job status |
-| GET  | `/api/uploads`            | List import jobs |
-| GET  | `/api/policies/search`    | **Task 1.2** — `?username=<name>&page=&limit=&exact=true` — policies for the matching user(s), references populated |
-| GET  | `/api/policies/aggregate` | **Task 1.3** — `?page=&limit=&username=<optional>` — per-user policy count + premium totals |
-| GET  | `/api/stats`              | Document count per collection |
-| GET  | `/api/data/:collection`   | Browse a collection (pagination) — `agents\|carriers\|lobs\|users\|accounts\|policies` |
-| GET  | `/api/cpu`                | Current CPU + memory sample and recent history |
-| POST | `/api/cpu/stress`         | Spawn a CPU stress worker (`{ "seconds": 15 }`) to demo the restart |
-| POST | `/api/messages`           | **Task 2.2** — schedule a message (see below) |
-| GET  | `/api/messages`           | List scheduled messages — `?status=scheduled\|sent\|failed&page=&limit=` |
-| GET  | `/api/messages/:id`       | Single message |
+| Method | Path | Notes |
+|--------|------|-------|
+| GET  | `/health` | uptime / pid |
+| POST | `/api/upload` | field `file` (.csv/.xlsx); returns `202` + `jobId`, parses in a worker thread |
+| GET  | `/api/upload/:jobId` | import job status |
+| GET  | `/api/uploads` | list import jobs |
+| GET  | `/api/policies/search` | `?username=<name>&page=&limit=&exact=true` |
+| GET  | `/api/policies/aggregate` | `?page=&limit=&username=<optional>` |
+| GET  | `/api/stats` | document count per collection |
+| GET  | `/api/data/:collection` | `agents\|carriers\|lobs\|users\|accounts\|policies` (paginated) |
+| GET  | `/api/cpu` | live CPU + memory + history |
+| POST | `/api/cpu/stress` | `{ "seconds": 15 }` — demo load to trigger the restart |
+| POST | `/api/messages` | `{ message, day, time }` — schedule a message |
+| GET  | `/api/messages` | `?status=scheduled\|sent\|failed&page=&limit=` |
+| GET  | `/api/messages/:id` | single message |
 
-### Task 1.1 — worker-thread import
+## Testing
 
-`POST /api/upload` writes the file to `uploads/`, registers an in-memory job, and
-spawns a **worker thread** (`src/workers/import.worker.js`). The HTTP response
-returns immediately (`202`); the main thread's event loop is never blocked while
-the file is parsed and written. Rows are streamed (not buffered), split into the
-6 entities by `src/utils/rowMapper.js`, and written in batched `bulkWrite`
-upserts so re-uploading the same file is idempotent.
-
-Dedupe keys: users on `firstname + dob` (email is not unique in the sheet),
-accounts on `account_name + user_id`, policies on `policy_number`.
-
-### Task 2.1 — CPU tracking + restart
-
-`src/utils/cpuMonitor.js` samples this process's CPU every `CPU_SAMPLE_INTERVAL_MS`
-as a percentage of one core. When `CPU_CONSECUTIVE_SAMPLES` samples in a row stay
-at/above `CPU_THRESHOLD` (70%), it emits `threshold`.
-
-Under `npm start` (cluster mode) the worker tells the primary, which forks a
-**new** worker and only kills the old one once the replacement is `listening` —
-so no request is dropped. Under `npm run start:single` there is no parent to
-restart the process, so it only logs a warning.
-
-To demo: open `http://localhost:3000/`, click **CPU stress**, watch the worker
-PID change on `/api/cpu`.
-
-### Task 2.2 — scheduled messages
+### Automated smoke test
 
 ```bash
-curl -X POST http://localhost:3000/api/messages \
-  -H 'Content-Type: application/json' \
-  -d '{ "message": "Renewal reminder", "day": "2026-09-01", "time": "14:30" }'
+npm start                       # terminal 1  (or: npm run start:single)
+npm test                        # terminal 2  -> runs scripts/smoke-test.sh
 ```
 
-- `day` — `YYYY-MM-DD`, `time` — `HH:mm` (24h), interpreted in the **server's local timezone**.
-- The document is stored immediately with `status: "scheduled"` and a computed `sendAt`.
-- A `node-cron` poller (`MESSAGE_POLL_CRON`, default every minute) atomically
-  claims each due message and flips it to `status: "sent"` with `sentAt`.
-- Keeping the schedule in MongoDB (instead of an in-memory timer) means pending
-  messages survive a restart, and the atomic `findOneAndUpdate` claim means a
-  clustered deployment never delivers one twice.
-- A `sendAt` in the past is delivered on the next poll.
+`scripts/smoke-test.sh` imports the sample CSV and asserts every task end to end
+(48 checks): worker-thread upload, all 6 collections populated, idempotent
+re-upload, username search (+ 400/404 cases), per-user aggregation + pagination,
+CPU sample endpoint, scheduled-message create/validate/list, and it waits for the
+cron poller to actually deliver a due message.
+
+### Manual (curl)
+
+```bash
+# Task 1.1 — upload (worker thread)
+curl -F "file=@data/data-sheet.csv" http://localhost:3000/api/upload
+curl http://localhost:3000/api/upload/<jobId>
+curl http://localhost:3000/api/stats
+
+# Task 1.2 — search by username
+curl "http://localhost:3000/api/policies/search?username=Lura%20Lucca"
+curl "http://localhost:3000/api/policies/search?username=lura&exact=true"   # 404
+curl "http://localhost:3000/api/policies/search"                            # 400
+
+# Task 1.3 — aggregated policy per user
+curl "http://localhost:3000/api/policies/aggregate?page=1&limit=5"
+curl "http://localhost:3000/api/policies/aggregate?username=Lura%20Lucca"
+
+# Task 2.1 — CPU monitor + restart (run with: npm start)
+curl http://localhost:3000/api/cpu
+curl -X POST http://localhost:3000/api/cpu/stress -H 'Content-Type: application/json' -d '{"seconds":15}'
+watch -n1 'curl -s http://localhost:3000/api/cpu | python3 -m json.tool | grep pid'   # pid changes = restarted
+
+# Task 2.2 — scheduled message
+curl -X POST http://localhost:3000/api/messages -H 'Content-Type: application/json' \
+  -d '{"message":"Renewal reminder","day":"2026-09-01","time":"14:30"}'
+curl "http://localhost:3000/api/messages?status=scheduled"
+```
+
+Or open `http://localhost:3000/` — the browser console has a button for every task.
+
+## How the tricky bits work
+
+- **Worker-thread import** — `POST /api/upload` saves the file, registers an
+  in-memory job, and spawns a worker thread. The HTTP response returns `202`
+  immediately; the main event loop is never blocked. Rows are streamed, split
+  into the 6 entities, and written with batched `bulkWrite` upserts, so
+  re-uploading the same file does not duplicate data. Dedupe keys: users on
+  `firstname + dob` (email is not unique in the sheet), accounts on
+  `account_name + user_id`, policies on `policy_number`.
+- **CPU restart** — `cpuMonitor.ts` samples this process's CPU as a % of one
+  core. After `CPU_CONSECUTIVE_SAMPLES` samples in a row at/above
+  `CPU_THRESHOLD`, the worker asks the cluster primary to restart it. The primary
+  forks a new worker and kills the old one only once the replacement is
+  `listening` — zero dropped requests. `start:single` has no primary, so it only
+  warns.
+- **Scheduled messages** — stored immediately with `status: "scheduled"` and a
+  computed `sendAt` (server local timezone). A `node-cron` poller
+  (`MESSAGE_POLL_CRON`, default every minute) atomically claims each due message
+  and marks it `sent`. DB-backed, so pending messages survive a restart; the
+  atomic `findOneAndUpdate` means a clustered deployment never sends one twice.
 
 ## Configuration (`.env`)
 
 | Var | Default | Purpose |
 |-----|---------|---------|
-| `MONGO_URI`               | local           | MongoDB connection string |
-| `PORT`                    | 3000            | HTTP port |
-| `CPU_THRESHOLD`           | 70              | CPU % that counts as "high" |
-| `CPU_CONSECUTIVE_SAMPLES` | 3               | High samples in a row before restart |
-| `CPU_SAMPLE_INTERVAL_MS`  | 2000            | Sampling interval |
-| `IMPORT_BATCH_SIZE`       | 500             | Bulk insert batch size |
-| `MAX_IMPORT_WORKERS`      | 2               | Concurrent import workers |
-| `MESSAGE_POLL_CRON`       | `* * * * *`     | Scheduled-message poll interval |
+| `MONGO_URI` | local | MongoDB connection string |
+| `PORT` | 3000 | HTTP port |
+| `CPU_THRESHOLD` | 70 | CPU % that counts as "high" |
+| `CPU_CONSECUTIVE_SAMPLES` | 3 | high samples in a row before restart |
+| `CPU_SAMPLE_INTERVAL_MS` | 2000 | sampling interval |
+| `IMPORT_BATCH_SIZE` | 500 | bulk insert batch size |
+| `MAX_IMPORT_WORKERS` | 2 | concurrent import workers |
+| `MESSAGE_POLL_CRON` | `* * * * *` | scheduled-message poll interval |
 
 ## Layout
 
 ```
 src/
-  cluster.js          cluster entrypoint (npm start) — CPU auto-restart
-  server.js           single-process entrypoint
-  app.js              express app + route wiring
-  config/db.js        mongoose connection
+  cluster.ts          cluster entrypoint (npm start) — CPU auto-restart
+  server.ts           single-process entrypoint
+  app.ts              express app + route wiring
+  config/db.ts        mongoose connection
   models/             agent, carrier, lob, user, account, policy, message
   routes/             upload, policy, stats, cpu, message
   controllers/        upload, policy, stats, browse, cpu, message
   services/           importJobs, monitor, scheduler
-  workers/            import.worker.js, stress.worker.js
+  workers/            import.worker.ts, stress.worker.ts
   utils/              rowMapper, fileStream, cpuMonitor
+  types/              csv-parser.d.ts
+scripts/smoke-test.sh end-to-end test
 data/data-sheet.csv   source data
 public/index.html     browser test console
 ```
