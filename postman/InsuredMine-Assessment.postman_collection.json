@@ -1,0 +1,185 @@
+{
+  "info": {
+    "name": "InsuredMine Node.js Assessment",
+    "description": "Task 1 (upload / search / aggregate / collections) and Task 2 (CPU monitor / scheduled messages). Set {{baseUrl}} to http://localhost:3000.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:3000" },
+    { "key": "jobId", "value": "" },
+    { "key": "messageId", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Assessment endpoints (exact URLs from the brief)",
+      "item": [
+        {
+          "name": "POST /upload - CSV/XLSX to MongoDB (worker thread)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('accepted', () => pm.response.to.have.status(202));",
+                  "pm.collectionVariables.set('jobId', pm.response.json().jobId);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{baseUrl}}/upload", "host": ["{{baseUrl}}"], "path": ["upload"] },
+            "body": {
+              "mode": "formdata",
+              "formdata": [{ "key": "file", "type": "file", "src": "data/data-sheet.csv" }]
+            },
+            "description": "Returns 202 + jobId immediately; parsing and inserting happen in a worker thread. Poll GET /api/upload/{{jobId}} for progress."
+          }
+        },
+        {
+          "name": "GET /search - policy info by username",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/search?username=Lura Lucca&page=1&limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["search"],
+              "query": [
+                { "key": "username", "value": "Lura Lucca" },
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "20" },
+                { "key": "exact", "value": "false", "disabled": true }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET /aggregate - policies grouped per user",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/aggregate?page=1&limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["aggregate"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "20" },
+                { "key": "username", "value": "Lura", "disabled": true }
+              ]
+            }
+          }
+        },
+        {
+          "name": "POST /scheduleMessage - insert a message at a given day + time",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('created', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('messageId', pm.response.json().data._id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/scheduleMessage", "host": ["{{baseUrl}}"], "path": ["scheduleMessage"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"message\": \"Policy renewal reminder\",\n  \"day\": \"2027-01-01\",\n  \"time\": \"09:30\"\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Task 1 - data",
+      "item": [
+        {
+          "name": "GET /api/upload/:jobId - import job status",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/upload/{{jobId}}", "host": ["{{baseUrl}}"], "path": ["api", "upload", "{{jobId}}"] }
+          }
+        },
+        {
+          "name": "GET /api/stats - document count per collection",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/stats", "host": ["{{baseUrl}}"], "path": ["api", "stats"] }
+          }
+        },
+        {
+          "name": "GET /api/data/:collection - browse documents",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/data/policies?page=1&limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "data", "policies"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "20" }
+              ]
+            },
+            "description": "collection is one of: users, policies, agents, carriers, lobs, accounts."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Task 2 - server + messages",
+      "item": [
+        {
+          "name": "GET /api/cpu - live CPU reading",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/cpu", "host": ["{{baseUrl}}"], "path": ["api", "cpu"] }
+          }
+        },
+        {
+          "name": "POST /api/cpu/stress - push CPU over 70% to demo the restart",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/cpu/stress", "host": ["{{baseUrl}}"], "path": ["api", "cpu", "stress"] },
+            "body": { "mode": "raw", "raw": "{\n  \"seconds\": 15\n}" }
+          }
+        },
+        {
+          "name": "GET /api/messages - scheduled + sent messages",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/messages?limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "messages"],
+              "query": [
+                { "key": "limit", "value": "20" },
+                { "key": "status", "value": "scheduled", "disabled": true }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET /api/messages/:id - one message",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/messages/{{messageId}}", "host": ["{{baseUrl}}"], "path": ["api", "messages", "{{messageId}}"] }
+          }
+        },
+        {
+          "name": "GET /health",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/health", "host": ["{{baseUrl}}"], "path": ["health"] }
+          }
+        }
+      ]
+    }
+  ]
+}

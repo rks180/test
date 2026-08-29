@@ -149,6 +149,13 @@ chk "sentAt stamped"                       '"sentAt":"2'     "$G"
 FUT2=$(curl -s "$B/api/messages?status=scheduled")
 chk "future message still scheduled"       'future ping'     "$FUT2"
 
+hr "Brief's exact endpoints (/upload /search /aggregate /scheduleMessage)"
+chk "GET /search"          '"policies":['      "$(curl -s "$B/search?username=Lura%20Lucca&limit=1")"
+chk "GET /aggregate"       '"policyCount"'     "$(curl -s "$B/aggregate?limit=1")"
+chk "POST /scheduleMessage" '"status":"scheduled"' "$(curl -s -X POST $B/scheduleMessage -H 'Content-Type: application/json' -d '{"message":"brief endpoint","day":"2027-01-01","time":"08:00"}')"
+UP3=$(curl -s -F "file=@data/data-sheet.csv" $B/upload)
+chk "POST /upload accepted" '"jobId"' "$UP3"
+
 hr "Negative / routing"
 chk "unknown route -> 404 json" 'Route not found' "$(curl -s $B/api/nope)"
 chk "bad collection name rejected -> 400" "400" "$(curl -s -o /dev/null -w '%{http_code}' $B/api/data/foobar)"
