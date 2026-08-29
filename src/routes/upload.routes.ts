@@ -1,9 +1,9 @@
 import path from 'path';
-import { Router } from 'express';
-import multer, { FileFilterCallback } from 'multer';
-import type { Request } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
+import multer, { FileFilterCallback, MulterError } from 'multer';
 
 import * as controller from '../controllers/upload.controller';
+import { BadRequestError } from '../lib/http-error';
 
 const ALLOWED = ['.csv', '.xlsx', '.xlsm'];
 
@@ -22,9 +22,18 @@ const uploadMw = multer({
   },
 });
 
+// Turn multer/file-filter errors into a 400 instead of a 500.
+function handleUploadErrors(err: unknown, _req: Request, _res: Response, next: NextFunction): void {
+  if (err instanceof MulterError || (err instanceof Error && !('status' in err))) {
+    next(new BadRequestError(err.message));
+    return;
+  }
+  next(err);
+}
+
 const router = Router();
 
-router.post('/upload', uploadMw.single('file'), controller.upload);
+router.post('/upload', uploadMw.single('file'), handleUploadErrors, controller.upload);
 router.get('/upload/:jobId', controller.status);
 router.get('/uploads', controller.list);
 

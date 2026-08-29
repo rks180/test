@@ -6,6 +6,7 @@ import statsRoutes from './routes/stats.routes';
 import cpuRoutes from './routes/cpu.routes';
 import policyRoutes from './routes/policy.routes';
 import messageRoutes from './routes/message.routes';
+import { HttpError } from './lib/http-error';
 
 const app = express();
 app.use(express.json());
@@ -26,10 +27,15 @@ app.use('/api', messageRoutes); // Task 2.2
 // 404
 app.use((_req: Request, res: Response) => res.status(404).json({ error: 'Route not found' }));
 
-// Central error handler (multer errors surface here too).
-app.use((err: Error & { status?: number }, _req: Request, res: Response, _next: NextFunction) => {
-  console.error('[error]', err.message);
-  res.status(err.status || 400).json({ error: err.message || 'Internal server error' });
+// Central error handler -- HttpError -> its status; anything else -> 500.
+app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
+  if (err instanceof HttpError) {
+    res.status(err.status).json({ error: err.message, details: err.details });
+    return;
+  }
+  const message = err instanceof Error ? err.message : 'Internal server error';
+  console.error('[error]', message);
+  res.status(500).json({ error: 'Internal server error' });
 });
 
 export default app;

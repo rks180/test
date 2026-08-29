@@ -29,4 +29,12 @@ POST /api/cpu/stress             { "seconds": 15 }  -> triggers restart
 
 POST /api/messages               { "message", "day": "2026-09-01", "time": "14:30" }
 GET  /api/messages               list scheduled/sent messages
+GET  /api/messages/:id           one message
 ```
+
+## How it's built
+
+- **Layers:** `routes → validate() → controller → service → model`. Controllers are thin (parse request, call service, respond); all DB logic lives in `src/services/`.
+- **Validation:** every route input is checked by a **zod** schema (`src/validators/`) via `validate()` middleware — bad input never reaches a controller.
+- **Errors:** services `throw` typed errors (`BadRequestError`, `NotFoundError`); one handler in `app.ts` turns them into JSON. Async handlers are wrapped by `asyncHandler`.
+- List responses use a `meta` block: `{ ..., meta: { page, limit, total, totalPages } }`.

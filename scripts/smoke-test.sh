@@ -151,7 +151,7 @@ chk "future message still scheduled"       'future ping'     "$FUT2"
 
 hr "Negative / routing"
 chk "unknown route -> 404 json" 'Route not found' "$(curl -s $B/api/nope)"
-chk "bad collection name rejected" 'Unknown collection' "$(curl -s $B/api/data/foobar)"
+chk "bad collection name rejected -> 400" "400" "$(curl -s -o /dev/null -w '%{http_code}' $B/api/data/foobar)"
 
 echo
 echo "==================================================="
