@@ -12,17 +12,7 @@ npm start
 ```
 
 Needs a running MongoDB. Server runs on `http://localhost:3000`.
-
-## Commands
-
-| Command | What |
-|---|---|
-| `npm start` | build + run (cluster mode, needed for CPU auto-restart) |
-| `npm run start:single` | build + run single process |
-| `npm run dev` | build + tsx watch (auto-reload) |
-| `npm run build` | compile `src/` → `dist/` |
-| `npm run typecheck` | type-check only |
-| `npm test` | smoke test (server must be running) |
+`npm start` compiles TypeScript and runs in cluster mode (required for CPU auto-restart).
 
 ## API
 
