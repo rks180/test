@@ -1,10 +1,12 @@
 import { Message } from '../models';
-import { NotFoundError } from '../lib/http-error';
+import { BadRequestError, NotFoundError } from '../lib/http-error';
+import { parseSendAt } from '../utils/sendAt';
 import type { CreateBody, ListQuery } from '../validators/message.schema';
 
 // Task 2.2 -- store the message; scheduler.ts delivers it at sendAt.
 export async function scheduleMessage(input: CreateBody) {
-  const sendAt = new Date(`${input.day}T${input.time}:00`); // server local timezone
+  const sendAt = parseSendAt(input.day, input.time); // server local timezone
+  if (!sendAt) throw new BadRequestError('day + time is not a real calendar date');
   const doc = await Message.create({
     message: input.message,
     day: input.day,

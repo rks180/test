@@ -30,14 +30,14 @@ export async function browseCollection(collection: CollectionName, q: Pagination
     query = query.populate('user_id', 'firstname');
   }
 
-  const [docs, total] = await Promise.all([query, Model.estimatedDocumentCount()]);
+  const [docs, total] = await Promise.all([query, Model.countDocuments()]);
   return { docs, meta: { page: q.page, limit: q.limit, total, totalPages: Math.ceil(total / q.limit) } };
 }
 
 export async function collectionCounts() {
   const entries = await Promise.all(
     Object.values(models).map(
-      async (Model) => [Model.collection.collectionName, await Model.estimatedDocumentCount()] as const
+      async (Model) => [Model.collection.collectionName, await Model.countDocuments()] as const
     )
   );
   return Object.fromEntries(entries);

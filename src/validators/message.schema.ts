@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { pagination } from './common.schema';
+import { parseSendAt } from '../utils/sendAt';
 
 // POST /api/messages
 export const createBody = z
@@ -8,8 +9,8 @@ export const createBody = z
     day: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'day must be YYYY-MM-DD'),
     time: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, 'time must be HH:mm (24h)'),
   })
-  .refine((v) => !Number.isNaN(new Date(`${v.day}T${v.time}:00`).getTime()), {
-    message: 'day + time is not a valid date',
+  .refine((v) => parseSendAt(v.day, v.time) !== null, {
+    message: 'day + time is not a real calendar date',
     path: ['day'],
   });
 
