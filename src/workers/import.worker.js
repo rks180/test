@@ -1,12 +1,9 @@
 'use strict';
 
 /**
- * Import worker -- ye poora file parsing + DB writing ka bhaari kaam MAIN THREAD SE
- * BAAHAR karta hai. Main thread sirf job spawn karke turant response de deta hai,
- * isliye upload ke dauran baaki APIs block nahi hoti.
- *
- * Har worker apna Mongo connection khud banata hai (mongoose connections threads ke
- * beech share nahi ho sakte).
+ * Task 1.1 import worker -- all file parsing + DB writing runs OFF the main thread,
+ * so other APIs stay responsive during an upload. Each worker opens its own Mongo
+ * connection (mongoose connections can't be shared between threads).
  */
 
 const { parentPort, workerData } = require('worker_threads');
@@ -34,11 +31,7 @@ function report(type) {
   parentPort.postMessage({ type, stats: { ...stats, errors: stats.errors.slice(0, 20) } });
 }
 
-/**
- * Chhote lookup collections (agent/carrier/lob) ke liye cache.
- * Ye teeno bahut chhote hain (3 / 46 / 19), isliye name -> _id map poori tarah RAM me
- * rakh lena safe hai aur har row pe DB hit bach jati hai.
- */
+// name -> _id cache for the tiny lookup collections (agent 3 / carrier 46 / lob 19) -- saves a DB hit per row.
 class LookupCache {
   constructor(Model, field, counterKey) {
     this.Model = Model;
@@ -70,7 +63,7 @@ class LookupCache {
   }
 }
 
-/** Batch ke andar duplicate keys hata do -- warna ek hi bulkWrite me do upsert same key pe ladenge. */
+/** Drop duplicate keys within a batch -- otherwise two upserts on the same key collide in one bulkWrite. */
 function dedupe(items, keyFn) {
   const m = new Map();
   for (const it of items) if (it) m.set(keyFn(it), it);
@@ -103,8 +96,7 @@ async function processBatch(mapped, caches) {
     { ordered: false }
   );
 
-  // Upsert ke baad _id chahiye. firstname indexed hai, isliye $in query sasti hai;
-  // firstname+dob ka final match JS me karte hain (do log same naam alag dob wale ho sakte hain).
+  // Fetch _ids after upsert via indexed firstname $in; exact firstname+dob match is resolved in JS below.
   const userDocs = await User.find(
     { firstname: { $in: users.map((u) => u.firstname) } },
     { firstname: 1, dob: 1 }
@@ -119,7 +111,7 @@ async function processBatch(mapped, caches) {
   }
   stats.users += users.length;
 
-  // ---- 3. Accounts (user_id chahiye, isliye users ke baad) ----
+  // ---- 3. Accounts (need user_id, so after users) ----
   const accounts = dedupe(mapped.map((m) => m.account), (a) => a.key).filter((a) => userIdByKey.has(a.userKey));
 
   if (accounts.length) {
@@ -146,7 +138,7 @@ async function processBatch(mapped, caches) {
     stats.accounts += accounts.length;
   }
 
-  // ---- 4. Policies (sab references ke saath) ----
+  // ---- 4. Policies (with all references) ----
   const policies = dedupe(mapped.map((m) => m.policy), (p) => p.policy_number);
   const ops = [];
 
@@ -156,7 +148,7 @@ async function processBatch(mapped, caches) {
     const userId = userIdByKey.get(p.userKey);
     if (!userId) {
       stats.rowsSkipped++;
-      stats.errors.push({ policy_number: p.policy_number, reason: 'user resolve nahi hua' });
+      stats.errors.push({ policy_number: p.policy_number, reason: 'user could not be resolved' });
       continue;
     }
 

@@ -1,12 +1,9 @@
 'use strict';
 
 /**
- * Production entry point (`npm start`).
- *
- * Master process koi request handle nahi karta -- wo sirf worker ko zinda rakhta hai.
- * Worker khud apna CPU monitor karta hai; threshold cross hone pe master ko batata hai,
- * master pehle NAYA worker uthata hai aur uske "listening" hone ke baad hi purana
- * band karta hai -- isliye restart ke dauran koi request drop nahi hoti.
+ * Production entry point (`npm start`). Primary just keeps a worker alive.
+ * On CPU threshold the worker asks the primary to restart; primary forks a NEW
+ * worker and kills the old one only once the replacement is "listening" -- zero downtime.
  */
 
 require('dotenv').config();
@@ -24,22 +21,22 @@ if (cluster.isPrimary) {
 
   cluster.on('message', (worker, msg) => {
     if (!msg || msg.type !== 'cpu-threshold') return;
-    if (restarting) return; // ek waqt me ek hi restart
+    if (restarting) return; // one restart at a time
     restarting = true;
     restarts++;
 
     console.warn(
-      `[master] worker ${worker.process.pid} ne ${msg.processCpu}% CPU report kiya ` +
+      `[master] worker ${worker.process.pid} reported ${msg.processCpu}% CPU ` +
         `(>= ${THRESHOLD}%) -- restart #${restarts}`
     );
 
     const replacement = cluster.fork();
 
     replacement.once('listening', () => {
-      console.log(`[master] naya worker ${replacement.process.pid} ready -- purana ${worker.process.pid} band kar rahe hain`);
+      console.log(`[master] new worker ${replacement.process.pid} ready -- shutting down old worker ${worker.process.pid}`);
       worker.kill('SIGTERM');
 
-      // agar 5s me graceful exit na ho to force kill
+      // Force-kill if it does not exit gracefully within 5s.
       const force = setTimeout(() => {
         if (!worker.isDead()) worker.process.kill('SIGKILL');
       }, 5000);
@@ -52,9 +49,9 @@ if (cluster.isPrimary) {
   cluster.on('exit', (worker, code, signal) => {
     console.log(`[master] worker ${worker.process.pid} exit (${signal || 'code ' + code})`);
 
-    // koi worker nahi bacha -> crash tha, naya utha do
+    // No worker left -> it crashed, fork a fresh one.
     if (Object.keys(cluster.workers).length === 0) {
-      console.log('[master] koi worker nahi bacha -- naya fork kar rahe hain');
+      console.log('[master] no worker left -- forking a new one');
       cluster.fork();
     }
   });

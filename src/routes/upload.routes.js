@@ -18,7 +18,7 @@ const uploadMw = multer({
   limits: { fileSize: 50 * 1024 * 1024 }, // 50 MB
   fileFilter: (req, file, cb) => {
     const ext = path.extname(file.originalname).toLowerCase();
-    if (!ALLOWED.includes(ext)) return cb(new Error(`Sirf ${ALLOWED.join(', ')} allowed hai`));
+    if (!ALLOWED.includes(ext)) return cb(new Error(`Only ${ALLOWED.join(', ')} files are allowed`));
     cb(null, true);
   },
 });

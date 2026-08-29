@@ -1,13 +1,6 @@
 'use strict';
 
-/**
- * Sirf demo/test ke liye -- CPU ko jaan-boojh kar garam karta hai taaki 70% wala
- * restart trigger hote hue dekha ja sake.
- *
- * Ye worker thread me chalta hai, isliye main thread ka event loop block nahi hota:
- * server requests serve karta rehta hai jabki process CPU chadhta hai.
- * (process.cpuUsage() saare threads ka CPU ginti hai.)
- */
+// Demo only -- burns CPU in a worker thread (main event loop stays free) to trigger the 70% restart.
 
 const { workerData } = require('worker_threads');
 

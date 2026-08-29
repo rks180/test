@@ -30,6 +30,9 @@
   button:hover { filter:brightness(1.08); }
   button:disabled { opacity:.5; cursor:not-allowed; }
   input[type=file] { font-size:14px; margin-bottom:12px; display:block; }
+  input[type=text], input[type=date], input[type=time] {
+    background:var(--panel); color:var(--text); border:1px solid var(--border);
+    border-radius:8px; padding:8px 10px; font-size:14px; }
   pre { background:var(--code-bg); color:var(--code-fg); padding:14px;
         border-radius:8px; overflow-x:auto; font-size:12.5px; margin:14px 0 0;
         max-height:340px; overflow-y:auto; }
@@ -78,7 +81,7 @@
 <body>
 <div class="wrap">
   <h1>InsuredMine API Console</h1>
-  <p class="sub">Task 1 &amp; 2 ko browser se test karne ke liye. Server <code>localhost:3000</code> pe chalna chahiye.</p>
+  <p class="sub">Test console for Task 1 &amp; 2. The server must be running on <code>localhost:3000</code>.</p>
 
   <div class="card">
     <h2>Server health</h2>
@@ -89,8 +92,8 @@
   </div>
 
   <div class="card">
-    <h2>1. CSV / XLSX upload (worker thread)</h2>
-    <p class="hint">POST /api/upload &mdash; file worker thread me parse hoti hai, main thread free rehta hai</p>
+    <h2>Task 1.1 &mdash; CSV / XLSX upload (worker thread)</h2>
+    <p class="hint">POST /api/upload &mdash; the file is parsed in a worker thread; the main thread stays free</p>
     <input type="file" id="file" accept=".csv,.xlsx,.xlsm">
     <div class="row">
       <button id="upbtn" onclick="upload()">Upload</button>
@@ -100,15 +103,39 @@
   </div>
 
   <div class="card">
-    <h2>2. Database counts</h2>
-    <p class="hint">GET /api/stats &mdash; har collection me kitne documents hain</p>
+    <h2>Task 1.2 &mdash; Search policy info by username</h2>
+    <p class="hint">GET /api/policies/search?username=&hellip; &mdash; returns the user's policies with references resolved</p>
+    <div class="row">
+      <input type="text" id="searchName" placeholder="e.g. Lura Lucca" style="min-width:220px">
+      <button onclick="policySearch()">Search</button>
+      <span id="sstatus" class="status"></span>
+    </div>
+    <pre id="sout" hidden></pre>
+  </div>
+
+  <div class="card">
+    <h2>Task 1.3 &mdash; Aggregated policy per user</h2>
+    <p class="hint">GET /api/policies/aggregate &mdash; policy count + premium totals grouped by user</p>
+    <div class="row">
+      <input type="text" id="aggName" placeholder="optional: filter by username" style="min-width:220px">
+      <button onclick="aggPage=1; policyAggregate()">Load</button>
+      <button onclick="aggPrev()">&larr; Prev</button>
+      <button onclick="aggNext()">Next &rarr;</button>
+      <span class="pager" id="aggpager"></span>
+    </div>
+    <div class="tablewrap" id="aggwrap" hidden><table id="aggtbl"></table></div>
+  </div>
+
+  <div class="card">
+    <h2>Database counts</h2>
+    <p class="hint">GET /api/stats &mdash; document count per collection</p>
     <button onclick="stats()">Refresh</button>
     <div class="counts" id="counts"></div>
   </div>
 
   <div class="card">
-    <h2>3. Uploaded data dekho</h2>
-    <p class="hint">GET /api/data/:collection &mdash; policies me references naam ke saath dikhte hain</p>
+    <h2>Browse uploaded data</h2>
+    <p class="hint">GET /api/data/:collection &mdash; policies show references by name</p>
     <div class="row">
       <select id="coll" onchange="page=1; browse()">
         <option value="policies">policies</option>
@@ -127,11 +154,31 @@
   </div>
 
   <div class="card">
-    <h2>4. Real-time CPU monitor &mdash; 70% pe auto restart</h2>
+    <h2>Task 2.2 &mdash; Schedule a message</h2>
     <p class="hint">
-      GET /api/cpu har second poll hota hai. <b>Stress</b> dabao &rarr; CPU chadhega &rarr;
-      lagataar 3 samples 70% ke upar rahe to server khud restart ho jayega
-      (<code>npm start</code> cluster mode me). Neeche <b>worker PID</b> badalna hi restart ka proof hai.
+      POST /api/messages { message, day, time } &mdash; stored now with status
+      <code>scheduled</code>; a cron poller flips it to <code>sent</code> at that day/time
+      (server local timezone). A past time is delivered on the next poll (&le; 1 min).
+    </p>
+    <div class="row">
+      <input type="text" id="msgText" placeholder="message" style="min-width:220px">
+      <input type="date" id="msgDay">
+      <input type="time" id="msgTime">
+      <button onclick="scheduleMsg()">Schedule</button>
+      <span id="mstatus" class="status"></span>
+    </div>
+    <div class="row" style="margin-top:10px">
+      <button onclick="loadMsgs()">Refresh list</button>
+    </div>
+    <div class="tablewrap" id="msgwrap" hidden><table id="msgtbl"></table></div>
+  </div>
+
+  <div class="card">
+    <h2>Task 2.1 &mdash; Real-time CPU monitor &mdash; auto restart at 70%</h2>
+    <p class="hint">
+      GET /api/cpu is polled every second. Click <b>CPU stress</b> &rarr; CPU climbs &rarr;
+      once 3 samples in a row stay above 70% the server restarts itself
+      (<code>npm start</code>, cluster mode). The changing <b>worker PID</b> below is the proof.
     </p>
     <div class="row">
       <button onclick="stress()">CPU stress (15s)</button>
@@ -160,30 +207,30 @@ async function health() {
   try {
     const r = await fetch('/health');
     const d = await r.json();
-    s.textContent = 'server zinda hai'; s.className = 'status ok';
+    s.textContent = 'server is up'; s.className = 'status ok';
     show($('hout'), d);
   } catch (e) {
-    s.textContent = 'server band hai'; s.className = 'status err';
+    s.textContent = 'server is down'; s.className = 'status err';
   }
 }
 
 async function upload() {
   const f = $('file').files[0];
   const s = $('ustatus');
-  if (!f) { s.textContent = 'pehle file choose karo'; s.className = 'status err'; return; }
+  if (!f) { s.textContent = 'choose a file first'; s.className = 'status err'; return; }
 
   const fd = new FormData();
   fd.append('file', f);
 
   $('upbtn').disabled = true;
-  s.textContent = 'upload ho rahi hai...'; s.className = 'status run';
+  s.textContent = 'uploading...'; s.className = 'status run';
 
   try {
     const r = await fetch('/api/upload', { method: 'POST', body: fd });
     const d = await r.json();
     show($('uout'), d);
-    if (!d.jobId) throw new Error(d.error || 'upload fail');
-    s.textContent = 'worker thread me chal raha hai...';
+    if (!d.jobId) throw new Error(d.error || 'upload failed');
+    s.textContent = 'running in a worker thread...';
     await poll(d.jobId);
   } catch (e) {
     s.textContent = e.message; s.className = 'status err';
@@ -199,18 +246,86 @@ async function poll(jobId) {
     show($('uout'), d);
     if (d.status === 'completed') {
       const ms = new Date(d.finishedAt) - new Date(d.startedAt);
-      s.textContent = `ho gaya — ${d.stats.rowsRead} rows, ${ms}ms`;
+      s.textContent = `done — ${d.stats.rowsRead} rows, ${ms}ms`;
       s.className = 'status ok';
       stats();
       return;
     }
     if (d.status === 'failed') {
-      s.textContent = 'fail: ' + d.error; s.className = 'status err';
+      s.textContent = 'failed: ' + d.error; s.className = 'status err';
       return;
     }
     await new Promise((res) => setTimeout(res, 400));
   }
   s.textContent = 'timeout'; s.className = 'status err';
+}
+
+// ---- Task 1.2 : policy search ----
+async function policySearch() {
+  const name = $('searchName').value.trim();
+  const s = $('sstatus');
+  if (!name) { s.textContent = 'enter a username'; s.className = 'status err'; return; }
+  s.textContent = 'searching...'; s.className = 'status run';
+  try {
+    const d = await (await fetch('/api/policies/search?username=' + encodeURIComponent(name) + '&limit=50')).json();
+    show($('sout'), d);
+    s.textContent = d.error ? d.error : `${d.total} policy(ies) for ${d.matchedUsers.length} user(s)`;
+    s.className = 'status ' + (d.error ? 'err' : 'ok');
+  } catch (e) {
+    s.textContent = e.message; s.className = 'status err';
+  }
+}
+
+// ---- Task 1.3 : aggregation ----
+let aggPage = 1, aggTotalPages = 1;
+async function policyAggregate() {
+  const name = $('aggName').value.trim();
+  const qs = `?page=${aggPage}&limit=20` + (name ? '&username=' + encodeURIComponent(name) : '');
+  const d = await (await fetch('/api/policies/aggregate' + qs)).json();
+  aggTotalPages = d.totalPages || 1;
+  $('aggpager').textContent = `page ${d.page} / ${aggTotalPages} — ${d.totalUsers} users`;
+  if (!d.users || !d.users.length) { $('aggwrap').hidden = true; return; }
+  const cols = ['username', 'email', 'state', 'policyCount', 'totalPremium', 'totalPremiumWritten'];
+  const head = '<tr>' + cols.map((c) => `<th>${c}</th>`).join('') + '</tr>';
+  const body = d.users.map((u) => '<tr>' + cols.map((c) => `<td>${u[c] ?? '—'}</td>`).join('') + '</tr>').join('');
+  $('aggtbl').innerHTML = head + body;
+  $('aggwrap').hidden = false;
+}
+function aggPrev() { if (aggPage > 1) { aggPage--; policyAggregate(); } }
+function aggNext() { if (aggPage < aggTotalPages) { aggPage++; policyAggregate(); } }
+
+// ---- Task 2.2 : schedule message ----
+async function scheduleMsg() {
+  const s = $('mstatus');
+  const body = { message: $('msgText').value.trim(), day: $('msgDay').value, time: $('msgTime').value };
+  if (!body.message || !body.day || !body.time) { s.textContent = 'fill message, day and time'; s.className = 'status err'; return; }
+  s.textContent = 'scheduling...'; s.className = 'status run';
+  try {
+    const r = await fetch('/api/messages', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+    });
+    const d = await r.json();
+    if (!r.ok) throw new Error((d.details || [d.error]).join('; '));
+    s.textContent = 'scheduled for ' + new Date(d.data.sendAt).toLocaleString();
+    s.className = 'status ok';
+    loadMsgs();
+  } catch (e) {
+    s.textContent = e.message; s.className = 'status err';
+  }
+}
+
+async function loadMsgs() {
+  const d = await (await fetch('/api/messages?limit=50')).json();
+  if (!d.messages || !d.messages.length) { $('msgwrap').hidden = true; return; }
+  const cols = ['message', 'day', 'time', 'sendAt', 'status', 'sentAt'];
+  const head = '<tr>' + cols.map((c) => `<th>${c}</th>`).join('') + '</tr>';
+  const body = d.messages.map((m) => '<tr>' + cols.map((c) => {
+    let v = m[c];
+    if ((c === 'sendAt' || c === 'sentAt') && v) v = new Date(v).toLocaleString();
+    return `<td>${v ?? '—'}</td>`;
+  }).join('') + '</tr>').join('');
+  $('msgtbl').innerHTML = head + body;
+  $('msgwrap').hidden = false;
 }
 
 async function stats() {
@@ -225,14 +340,12 @@ let page = 1, totalPages = 1;
 function cellText(v) {
   if (v === null || v === undefined || v === '') return '—';
   if (typeof v === 'object') {
-    // populated reference -> uska naam nikaalo
     const name = v.firstname || v.company_name || v.category_name || v.account_name || v.name;
     if (name) return name;
     if (v.$oid) return v.$oid;
     return JSON.stringify(v);
   }
   const s = String(v);
-  // ISO date ko chhota kar do
   if (/^\d{4}-\d{2}-\d{2}T/.test(s)) return s.slice(0, 10);
   return s;
 }
@@ -247,7 +360,6 @@ async function browse() {
 
   if (!d.docs.length) { $('tablewrap').hidden = true; return; }
 
-  // __v aur timestamps hata do, table saaf rahe
   const skip = new Set(['__v', 'createdAt', 'updatedAt']);
   const cols = Object.keys(d.docs[0]).filter((k) => !skip.has(k));
 
@@ -263,7 +375,7 @@ async function browse() {
 function prev() { if (page > 1) { page--; browse(); } }
 function next() { if (page < totalPages) { page++; browse(); } }
 
-// ---- CPU monitor (Task 2.1) ----
+// ---- Task 2.1 : CPU monitor ----
 let lastPid = null, restartCount = 0;
 
 async function cpuTick() {
@@ -271,7 +383,6 @@ async function cpuTick() {
   try {
     d = await (await fetch('/api/cpu')).json();
   } catch (e) {
-    // restart ke dauran ek-do request fail ho sakti hai
     $('clbl').textContent = 'reconnecting...';
     return;
   }
@@ -288,11 +399,10 @@ async function cpuTick() {
   $('cmark').style.left = d.threshold + '%';
   $('clbl').textContent = `${c.processCpu}%  (threshold ${d.threshold}%)`;
 
-  // restart detect: PID badal gaya
   if (lastPid !== null && d.pid !== lastPid) {
     restartCount++;
     const s = $('cstatus');
-    s.textContent = `restart hua! ${lastPid} → ${d.pid}`;
+    s.textContent = `restarted! ${lastPid} → ${d.pid}`;
     s.className = 'status ok';
   }
   lastPid = d.pid;
@@ -305,7 +415,7 @@ async function cpuTick() {
     <div><b>heap used</b>${c.heapUsedMb} MB</div>
     <div><b>uptime</b>${d.uptimeSec}s</div>
     <div><b>breaches</b>${d.consecutiveBreaches} / ${d.consecutiveNeeded}</div>
-    <div><b>restarts dekhe</b>${restartCount}</div>`;
+    <div><b>restarts seen</b>${restartCount}</div>`;
 
   $('spark').innerHTML = d.history
     .slice(-40)
@@ -315,7 +425,7 @@ async function cpuTick() {
 
 async function stress() {
   const s = $('cstatus');
-  s.textContent = 'CPU garam kar rahe hain...'; s.className = 'status run';
+  s.textContent = 'heating up the CPU...'; s.className = 'status run';
   try {
     await fetch('/api/cpu/stress', {
       method: 'POST',
@@ -330,6 +440,7 @@ async function stress() {
 health();
 stats();
 browse();
+loadMsgs();
 cpuTick();
 setInterval(cpuTick, 1000);
 </script>

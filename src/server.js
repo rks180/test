@@ -5,6 +5,7 @@ require('dotenv').config();
 const app = require('./app');
 const { connectDB } = require('./config/db');
 const { monitor } = require('./services/monitor');
+const { scheduler } = require('./services/scheduler');
 
 const PORT = process.env.PORT || 3000;
 
@@ -15,14 +16,18 @@ async function start() {
     console.log(`[server] listening on http://localhost:${PORT} (pid ${process.pid})`);
   });
 
-  // Task 2.1 -- real-time CPU tracking chalu
+  // Task 2.1 -- start real-time CPU tracking.
   monitor.start();
-  console.log(`[cpu] monitor chalu | threshold ${monitor.threshold}% | har ${monitor.intervalMs}ms`);
+  console.log(`[cpu] monitor started | threshold ${monitor.threshold}% | every ${monitor.intervalMs}ms`);
 
-  // SIGTERM pe naye connections lena band karo, chalti requests poori hone do
+  // Task 2.2 -- start the scheduled-message delivery poller.
+  scheduler.start();
+
+  // On SIGTERM stop accepting new connections and let in-flight requests finish.
   process.on('SIGTERM', () => {
-    console.log(`[server] SIGTERM mila (pid ${process.pid}) -- graceful shutdown`);
+    console.log(`[server] SIGTERM received (pid ${process.pid}) -- graceful shutdown`);
     monitor.stop();
+    scheduler.stop();
     server.close(() => process.exit(0));
     setTimeout(() => process.exit(0), 5000).unref();
   });

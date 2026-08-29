@@ -1,6 +1,8 @@
+'use strict';
+
 const mongoose = require('mongoose');
 
-// Policy Info -- baaki sab collections ko ObjectId se jodta hai.
+// Policy Info -- links every other collection together via ObjectId references.
 const policySchema = new mongoose.Schema(
   {
     policy_number: { type: String, required: true, unique: true, trim: true },
@@ -13,7 +15,7 @@ const policySchema = new mongoose.Schema(
     producer: { type: String, default: '', trim: true },
     csr: { type: String, default: '', trim: true },
 
-    // References -- assignment ka core requirement
+    // References -- the core requirement of the assignment.
     category_id: { type: mongoose.Schema.Types.ObjectId, ref: 'LOB', index: true },
     company_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Carrier', index: true },
     user_id: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },

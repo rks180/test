@@ -2,7 +2,8 @@
 
 const models = require('../models');
 
-// URL me collection ka naam -> model. Whitelist hai taaki koi bhi collection na khul jaye.
+// Collection name in the URL -> model. Whitelisted so arbitrary collections
+// cannot be opened.
 const COLLECTIONS = {
   agents: 'Agent',
   carriers: 'Carrier',
@@ -12,7 +13,7 @@ const COLLECTIONS = {
   policies: 'Policy',
 };
 
-/** GET /api/data/:collection?page=1&limit=20 -- raw documents dekhne ke liye. */
+/** GET /api/data/:collection?page=1&limit=20 -- inspect raw documents. */
 async function browse(req, res, next) {
   try {
     const key = String(req.params.collection || '').toLowerCase();
@@ -30,7 +31,7 @@ async function browse(req, res, next) {
 
     let q = Model.find().skip((page - 1) * limit).limit(limit).lean();
 
-    // References ko readable bana do -- warna sirf ObjectId dikhega
+    // Resolve references to readable names -- otherwise only the ObjectId shows.
     if (key === 'policies') {
       q = q
         .populate('user_id', 'firstname')

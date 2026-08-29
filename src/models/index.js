@@ -1,3 +1,5 @@
+'use strict';
+
 module.exports = {
   Agent: require('./agent.model'),
   Carrier: require('./carrier.model'),
@@ -5,4 +7,5 @@ module.exports = {
   User: require('./user.model'),
   Account: require('./account.model'),
   Policy: require('./policy.model'),
+  Message: require('./message.model'),
 };

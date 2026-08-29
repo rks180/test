@@ -1,6 +1,8 @@
+'use strict';
+
 const mongoose = require('mongoose');
 
-// CSV me `firstname` actually poora naam hota hai ("Lura Lucca"), isliye naam wahi rakha hai.
+// The sheet's `firstname` column holds the full name ("Lura Lucca"); kept as-is.
 const userSchema = new mongoose.Schema(
   {
     firstname: { type: String, required: true, trim: true, index: true },
@@ -17,8 +19,7 @@ const userSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// Dedupe key: email par UNIQUE nahi laga sakte -- sheet me 47 emails do alag logon ke
-// paas hain (alag naam/dob/phone). firstname + dob milkar 1198/1198 unique hain.
+// Dedupe key: email isn't unique (47 shared across people); firstname + dob is unique across all 1198 rows.
 userSchema.index({ firstname: 1, dob: 1 }, { unique: true });
 
 module.exports = mongoose.model('User', userSchema);

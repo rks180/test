@@ -1,8 +1,11 @@
 'use strict';
+
 const fs = require('fs');
 const path = require('path');
 const csvParser = require('csv-parser');
 const ExcelJS = require('exceljs');
+
+// Streams a CSV/XLSX file row by row as header-keyed objects -- flat memory regardless of file size.
 async function* streamRows(filePath) {
   const ext = path.extname(filePath).toLowerCase();
 
@@ -24,7 +27,7 @@ async function* streamRows(filePath) {
     let headers = null;
     for await (const worksheet of reader) {
       for await (const row of worksheet) {
-        // row.values 1-indexed hota hai, index 0 hamesha empty
+        // row.values is 1-indexed; index 0 is always empty.
         const values = row.values;
         if (!headers) {
           headers = values.map((v) => (v == null ? '' : String(v).trim()));
@@ -36,12 +39,12 @@ async function* streamRows(filePath) {
         }
         yield obj;
       }
-      break; // sirf pehli sheet
+      break; // first sheet only
     }
     return;
   }
 
-  throw new Error(`Unsupported file type: ${ext} (sirf .csv aur .xlsx chalega)`);
+  throw new Error(`Unsupported file type: ${ext} (only .csv and .xlsx are supported)`);
 }
 
 module.exports = { streamRows };

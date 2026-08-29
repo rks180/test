@@ -2,7 +2,7 @@
 
 const models = require('../models');
 
-/** GET /api/stats -- har collection me kitne documents hain. */
+/** GET /api/stats -- document count per collection. */
 async function stats(req, res, next) {
   try {
     const entries = await Promise.all(

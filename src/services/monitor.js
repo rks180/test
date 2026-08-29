@@ -17,16 +17,14 @@ monitor.on('threshold', (point) => {
 
   console.warn(
     `[cpu] ${point.processCpu}% >= ${monitor.threshold}% threshold ` +
-      `(lagataar ${monitor.consecutive} samples) -- restart chahiye`
+      `(${monitor.consecutive} consecutive samples) -- restart required`
   );
 
   if (cluster.isWorker) {
-    // Master ko bolo. Wo pehle naya worker uthayega, phir ise band karega (zero downtime).
-    process.send({ type: 'cpu-threshold', ...point });
+    process.send({ type: 'cpu-threshold', ...point }); // primary does the zero-downtime restart
   } else {
-    // Standalone mode: khud restart nahi kar sakte, isliye sirf warn karte hain.
-    // `npm start` (cluster mode) me asli restart hota hai.
-    console.warn('[cpu] standalone mode -- restart ke liye `npm start` (cluster) use karo');
+    // Standalone mode can't self-restart; real restart happens under `npm start` (cluster).
+    console.warn('[cpu] standalone mode -- use `npm start` (cluster) for an actual restart');
     restartRequested = false;
   }
 });

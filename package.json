@@ -1,15 +1,22 @@
 {
   "name": "insuredmine-assessment",
   "version": "1.0.0",
-  "description": "InsuredMine Node.js assessment - CSV to MongoDB via worker threads, search/aggregation APIs, CPU monitor, scheduled messages",
+  "description": "InsuredMine Node.js assessment - CSV/XLSX to MongoDB via worker threads, policy search & aggregation APIs, CPU monitor with auto-restart, scheduled messages",
   "main": "src/cluster.js",
   "scripts": {
     "start": "node src/cluster.js",
     "dev": "node --watch src/server.js",
     "start:single": "node src/server.js"
   },
-  "keywords": [],
-  "author": "",
+  "keywords": [
+    "nodejs",
+    "express",
+    "mongodb",
+    "mongoose",
+    "worker-threads",
+    "node-cron"
+  ],
+  "author": "Ravi Shankar Kumar",
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {

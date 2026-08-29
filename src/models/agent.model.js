@@ -1,6 +1,8 @@
+'use strict';
+
 const mongoose = require('mongoose');
 
-// CSV column: agent  (sirf 3 unique agents hain poore sheet me)
+// Source column: `agent` (only 3 unique agents in the whole sheet).
 const agentSchema = new mongoose.Schema(
   {
     name: { type: String, required: true, unique: true, trim: true },

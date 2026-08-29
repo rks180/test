@@ -5,17 +5,14 @@ const { Worker } = require('worker_threads');
 
 const { monitor } = require('../services/monitor');
 
-/** GET /api/cpu -- live CPU + memory reading aur pichhle samples ki history. */
+/** GET /api/cpu -- live CPU + memory reading plus recent sample history. */
 function cpu(req, res) {
-  // response ke waqt ek fresh sample le lo, taaki number stale na ho
+  // Take a fresh sample at request time so the number is not stale.
   monitor.sample();
   res.json(monitor.snapshot());
 }
 
-/**
- * POST /api/cpu/stress { seconds }
- * Demo helper: CPU ko threshold ke upar le jata hai taaki restart dikhaya ja sake.
- */
+// POST /api/cpu/stress { seconds } -- demo helper: pushes CPU past the threshold to show the restart.
 function stress(req, res) {
   const seconds = Math.min(Math.max(Number(req.body?.seconds) || 10, 1), 30);
 
@@ -25,9 +22,9 @@ function stress(req, res) {
   worker.unref();
 
   res.json({
-    message: `${seconds}s ke liye CPU load daala gaya (worker thread me)`,
+    message: `Applied CPU load for ${seconds}s (in a worker thread)`,
     threshold: monitor.threshold,
-    watch: 'GET /api/cpu se live reading dekho',
+    watch: 'GET /api/cpu for the live reading',
   });
 }
 

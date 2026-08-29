@@ -4,15 +4,9 @@ const os = require('os');
 const EventEmitter = require('events');
 
 /**
- * Node server ki real-time CPU utilization track karta hai.
- *
- * Do alag numbers nikaalte hain:
- *   processCpu -- IS node process ne kitna CPU khaya, ek core ke % me (jaise `top` dikhata hai).
- *                 Assignment "CPU utilization of the node server" yahi maang raha hai.
- *   systemCpu  -- poori machine ka CPU, saare cores milakar.
- *
- * Threshold sirf tab fire hota hai jab lagataar `consecutive` samples limit ke upar hon --
- * ek pal ka spike (jaise GC ya ek bhaari request) server ko restart nahi karega.
+ * Task 2.1 -- real-time CPU tracking.
+ * processCpu = this process, % of one core (assignment's "CPU of the node server"); systemCpu = whole machine.
+ * threshold fires only after `consecutive` samples in a row breach it, so a one-off spike won't restart.
  */
 class CpuMonitor extends EventEmitter {
   constructor({ intervalMs = 5000, threshold = 70, consecutive = 3, historySize = 60 } = {}) {
@@ -86,7 +80,7 @@ class CpuMonitor extends EventEmitter {
         this.emit('threshold', point);
       }
     } else {
-      this.breaches = 0; // lagataar hona chahiye, warna reset
+      this.breaches = 0; // must be consecutive, otherwise reset
     }
 
     return point;
@@ -95,7 +89,7 @@ class CpuMonitor extends EventEmitter {
   start() {
     if (this.timer) return this;
     this.timer = setInterval(() => this.sample(), this.intervalMs);
-    this.timer.unref(); // monitor akela process ko zinda na rakhe
+    this.timer.unref(); // the monitor alone should not keep the process alive
     return this;
   }
 

@@ -7,11 +7,7 @@ const { Worker } = require('worker_threads');
 
 const WORKER_PATH = path.join(__dirname, '..', 'workers', 'import.worker.js');
 
-/**
- * In-memory job registry. Ek upload = ek worker thread.
- * (Production me ye Redis/DB me jaata, taaki restart pe bhi status bacha rahe --
- *  assessment ke scope ke liye in-memory kaafi hai.)
- */
+// In-memory job registry, one upload = one worker thread (Redis/DB in production; fine for this scope).
 const jobs = new Map();
 
 const MAX_CONCURRENT = Number(process.env.MAX_IMPORT_WORKERS || 2);
@@ -84,7 +80,7 @@ function spawn(id, filePath) {
     if (job.status === 'running') job.status = 'completed';
     job.finishedAt = job.finishedAt || new Date().toISOString();
 
-    // uploaded file cleanup
+    // Clean up the uploaded file.
     fs.unlink(filePath, () => {});
 
     running--;

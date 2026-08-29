@@ -1,13 +1,10 @@
 'use strict';
 
-/**
- * CSV/XLSX ki ek flat row ko 6 alag entities me todta hai.
- * Yahan sirf pure functions hain -- koi DB call nahi -- taaki worker me test karna asaan rahe.
- */
+// Splits one flat CSV/XLSX row into the 6 entities. Pure functions only -- no DB calls.
 
 function str(v) {
   if (v === null || v === undefined) return '';
-  // exceljs kabhi-kabhi { text, hyperlink } ya { result } object deta hai
+  // exceljs sometimes returns a { text, hyperlink } or { result } object.
   if (typeof v === 'object') {
     if (v.text !== undefined) return String(v.text).trim();
     if (v.result !== undefined) return String(v.result).trim();
@@ -32,24 +29,24 @@ function toNum(v) {
   return Number.isNaN(n) ? 0 : n;
 }
 
-/** User ka dedupe key -- email unique nahi hai, isliye firstname + dob. */
+/** User dedupe key -- email is not unique, so firstname + dob. */
 function userKey(firstname, dob) {
   return `${firstname.toLowerCase()}|${dob ? dob.toISOString().slice(0, 10) : ''}`;
 }
 
-/** Account ka dedupe key -- account_name akela unique nahi hai. */
+/** Account dedupe key -- account_name alone is not unique. */
 function accountKey(accountName, userKeyStr) {
   return `${accountName.toLowerCase()}|${userKeyStr}`;
 }
 
 /**
- * @returns {{agent,carrier,lob,user,account,policy}|null} null agar row use karne layak na ho
+ * @returns {{agent,carrier,lob,user,account,policy}|null} null if the row is unusable
  */
 function mapRow(raw) {
   const firstname = str(raw.firstname);
   const policyNumber = str(raw.policy_number);
 
-  // In do ke bina row ka koi matlab nahi -- user ko attach nahi kar sakte.
+  // Without these two the row is meaningless -- it cannot be attached to a user.
   if (!firstname || !policyNumber) return null;
 
   const dob = toDate(raw.dob);
