@@ -32,11 +32,7 @@ interface WorkerMessage {
   message?: string;
 }
 
-// Always run the COMPILED worker (`dist/workers/*.js`) -- a plain JS worker thread
-// is far more reliable than a TS loader inside a worker. Both `npm start` and
-// `npm run dev` build first, so dist/ is always present.
-//   compiled: __dirname = dist/services      -> ../workers
-//   tsx dev:  __dirname = src/services        -> ../../dist/workers
+// Always run the compiled worker (`dist/workers/*.js`) -- plain JS worker is more reliable than a TS loader; `npm start`/`dev` build first.
 const WORKERS_DIR = __filename.endsWith('.ts')
   ? path.join(__dirname, '..', '..', 'dist', 'workers')
   : path.join(__dirname, '..', 'workers');

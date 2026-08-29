@@ -30,11 +30,7 @@ export interface CpuMonitorOptions {
   historySize?: number;
 }
 
-/**
- * Task 2.1 -- real-time CPU tracking.
- * processCpu = this process, % of one core (assignment's "CPU of the node server"); systemCpu = whole machine.
- * threshold fires only after `consecutive` samples in a row breach it, so a one-off spike won't restart.
- */
+// Task 2.1 -- CPU tracking. processCpu = this process (% of one core); threshold fires after `consecutive` breaching samples, not a one-off spike.
 export class CpuMonitor extends EventEmitter {
   readonly intervalMs: number;
   readonly threshold: number;

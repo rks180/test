@@ -4,10 +4,7 @@ import { User, Policy } from '../models';
 
 const escapeRe = (s: string): string => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-/**
- * Task 1.2 -- GET /api/policies/search?username=<name>&page=&limit=&exact=true
- * "username" maps to User.firstname (full name in the sheet). Case-insensitive; substring unless exact=true.
- */
+// Task 1.2 -- GET /api/policies/search?username=&page=&limit=&exact= ; "username" = User.firstname, case-insensitive substring unless exact=true.
 export async function search(req: Request, res: Response): Promise<void> {
   const username = String(req.query.username || '').trim();
   if (!username) {
@@ -53,10 +50,7 @@ export async function search(req: Request, res: Response): Promise<void> {
   });
 }
 
-/**
- * Task 1.3 -- GET /api/policies/aggregate?page=&limit=&username=<optional>
- * Groups Policy by user_id: per-user policy count + premium totals.
- */
+// Task 1.3 -- GET /api/policies/aggregate?page=&limit=&username= ; groups Policy by user_id: per-user policy count + premium totals.
 export async function aggregateByUser(req: Request, res: Response): Promise<void> {
   const limit = Math.min(Math.max(Number(req.query.limit) || 20, 1), 100);
   const page = Math.max(Number(req.query.page) || 1, 1);

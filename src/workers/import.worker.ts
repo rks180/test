@@ -1,8 +1,4 @@
-/**
- * Task 1.1 import worker -- all file parsing + DB writing runs OFF the main thread,
- * so other APIs stay responsive during an upload. Each worker opens its own Mongo
- * connection (mongoose connections can't be shared between threads).
- */
+// Task 1.1 import worker -- file parsing + DB writing runs OFF the main thread; each worker opens its own Mongo connection.
 
 import { parentPort, workerData } from 'worker_threads';
 import mongoose, { Model, Types } from 'mongoose';

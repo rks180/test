@@ -4,10 +4,7 @@ import { Message } from '../models';
 const DAY_RE = /^\d{4}-\d{2}-\d{2}$/; // YYYY-MM-DD
 const TIME_RE = /^([01]\d|2[0-3]):([0-5]\d)$/; // HH:mm (24h)
 
-/**
- * Task 2.2 -- POST /api/messages  body: { message, day: "YYYY-MM-DD", time: "HH:mm" }
- * Saved now as "scheduled"; scheduler.ts delivers it at day+time (server local tz).
- */
+// Task 2.2 -- POST /api/messages { message, day: "YYYY-MM-DD", time: "HH:mm" }; saved as "scheduled", scheduler.ts delivers it at day+time (server local tz).
 export async function create(req: Request, res: Response): Promise<void> {
   const body = (req.body ?? {}) as { message?: unknown; day?: unknown; time?: unknown };
   const message = typeof body.message === 'string' ? body.message.trim() : '';

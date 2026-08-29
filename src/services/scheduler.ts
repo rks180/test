@@ -1,11 +1,7 @@
 import cron, { ScheduledTask } from 'node-cron';
 import { Message } from '../models';
 
-/**
- * Task 2.2 delivery poller. Runs every minute, marks due messages as "sent".
- * DB-backed (not per-message timers) so it survives restarts; the atomic
- * findOneAndUpdate claim means a clustered deployment never sends one twice.
- */
+// Task 2.2 delivery poller -- every minute, atomically claims due messages and marks them "sent"; DB-backed so it survives restarts.
 export class MessageScheduler {
   readonly expression: string;
   private task: ScheduledTask | null = null;

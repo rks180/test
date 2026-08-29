@@ -1,8 +1,4 @@
-/**
- * Production entry point (`npm start`). Primary just keeps a worker alive.
- * On CPU threshold the worker asks the primary to restart; primary forks a NEW
- * worker and kills the old one only once the replacement is "listening" -- zero downtime.
- */
+// Cluster entry (`npm start`): on CPU threshold, fork a new worker and kill the old one once it's listening -- zero downtime.
 
 import 'dotenv/config';
 import cluster from 'cluster';
